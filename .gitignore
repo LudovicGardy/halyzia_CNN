@@ -1,0 +1,11 @@
+### Ignore these folders
+__pycache__/
+.vs/
+derivatives/
+program/.ipynb_checkpoints
+program/events_data
+
+### Ignore these files
+Shared_scripts.pyproj
+Shared_scripts.sln
+start_demo_extended.ipynb

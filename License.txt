@@ -1,0 +1,26 @@
+------------------------------------------------------------
+EVALUATION LICENSE
+Le Centre de Recherche Cerveau et Cognition (CerCo), UMR N°5549, science research laboratory, Toulouse, France.
+------------------------------------------------------------
+
+Definitions
+
+ALGORITHMS : neural network written by Ludovic Gardy, Emmanuel J. Barbeau and Christophe Hurter, at le Centre de Recherche Cerveau et Cognition (CerCo), science research laboratory. ALGORITHMS are part of an invention. A french patent application has been filed on this invention on October 20, 2021 under number FR2111138
+
+LICENSOR: LE CENTRE NATIONAL DE LA RECHERCHE SCIENTIFIQUE, a public scientific and technological establishment, having N° SIREN : 180 089 013, code APE 7219Z, having its registered office at 3, rue Michel-Ange, 75796 Paris cedex 16, acting in its own name and on its own behalf, and on behalf of Le Centre de Recherche Cerveau et Cognition (CerCo), UMR N°5549.
+ 
+LICENSEE : Any person or organization who receives the ALGORITHMS with a copy of this license. 
+
+1. INTENT/PURPOSE 
+This agreement determines the conditions in which the LICENSOR grants to the LICENSEE a license for research and evaluation purposes only, excluding any commercial use.
+
+2. RIGHTS GRANTED
+The rights to use the ALGORITHMS, subject to the restrictions described in this agreement.
+
+3. SCOPE OF THE LICENSE 
+
+- NON-COMMERCIAL license for research and evaluation purposes ONLY. 
+- NO right to commercialize the ALGORITHMS, or any derivative work, without separate agreement with the LICENSOR. 
+- LICENSEE pays no royalty for this license. 
+- LICENSEE and any third parties must enter a new agreement for any use beyond scope of license.
+- ALGORITHMS are provided without warranty of any kind.

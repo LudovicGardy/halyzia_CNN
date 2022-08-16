@@ -1,0 +1,5 @@
+obspy==1.2.2
+Keras==2.8.0
+tensorflow==2.8.0
+scipy==1.7.3
+opencv-python==4.5.5.62

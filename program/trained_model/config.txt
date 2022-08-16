@@ -1,0 +1,459 @@
+### Timeseries normalization
+###---------------------------
+
+- Amplitude standardization: Z-score [timeseries = (np.array(timeseries) - np.mean(timeseries)) / np.std(timeseries)]
+- Whitening: kind of d-trend
+
+### Scalogram normalization
+###-------------------------
+
+- Morlet wavelets n cycles: 16
+- ZH0: LG on abs(scalogram) [real and imaginary parts]
+- Convolution (simga = 5)
+- Reshaped (50x500)
+
+### Note
+###------
+- No 5KHz Normalisation on timeseries
+- No 0-255 (or any other range) color normalization on scalogram
+- No removal of scalogram edges
+
+### Script
+###-------------------------
+import numpy as np
+from scipy import signal
+import os
+
+import matplotlib.pyplot as plt
+import math
+from obspy.signal.tf_misfit import cwt as cwt_obspy
+import scipy.ndimage as ndimage
+from scipy import signal
+import cv2
+import tqdm
+import json
+import psutil
+from sklearn.model_selection import (KFold, RepeatedKFold)
+from datetime import datetime
+import pandas as pd
+import tensorflow as tf
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+
+import sys
+
+sys.path.append(r"F:\GardyL\Ladybird_v2\ladybird\signal_processing")
+sys.path.append(r"F:\GardyL\Ladybird_v2\ladybird\database_action")
+from load_from_database import load_one_timeseries
+from get_whitened_scalogram import Calc_scalogram
+from standardize_timeseries import standardize_timeseries
+from whiten_timeseries import whiten_timeseries
+
+sys.path.append(r"F:\GardyL\Ladybird_v2\ladybird\tslearn\tslearn\preprocessing")
+from preprocessing import TimeSeriesScalerMinMax
+
+###############################
+#### Already existing funs ####
+###############################
+def resample_timeseries(timeseries, signal_duration_sec = 0.4, target_sfreq = 5000):
+    n_timestamps = int(signal_duration_sec * target_sfreq)
+    timeseries = signal.resample(timeseries, n_timestamps)
+
+    # Remove artefacts at the beginning/end of the raw signal
+    timeseries = macro_artefact_correction(timeseries, target_sfreq)
+
+    return(timeseries)
+
+def macro_artefact_correction(timeseries, sfreq):
+    limit = int(0.01 * sfreq)
+    timeseries[0:limit] = np.repeat(timeseries[limit], limit)
+    timeseries[len(timeseries)-limit:] = np.repeat(timeseries[len(timeseries)-limit], limit)
+
+    return(timeseries)
+
+###############################
+####  Training model funs  ####
+###############################
+
+##ts1_list = timeseries_list
+#t1_list_std = []
+#for i in t1_list:
+#    print(np.std(i))
+#    t1_list_std.append(np.std(i))
+
+##ts2_list = timeseries_list
+#t2_list_std = []
+#for i in t2_list:
+#    print(np.std(i))
+#    t2_list_std.append(np.std(i))
+
+#np.mean(t1_list_std)
+#np.mean(t2_list_std)
+
+#min(ts1_list[0]) ; max(ts1_list[0])
+#min(ts2_list[0]) ; max(ts2_list[0])
+
+def load_scalograms(folderpath):
+
+    json_filepath = os.path.join(folderpath, "events_info.json")
+    json_dict = json.load(open(json_filepath))
+
+    events_data_folderpath = os.path.join(folderpath, "events_signal_data")
+
+    target_sfreq = 5000
+    signal_duration_sec = 0.4
+    bp_filter = (200,600)
+    scalogram_resize = (500,50)
+
+    scalograms_list = []
+    raw_timeseries_list = []
+    #for _ev in tqdm.tqdm(json_dict["events_info"][0:64]):
+    for _ev in tqdm.tqdm(json_dict["events_info"]):
+        timeseries_filepath = os.path.join(events_data_folderpath, f"event_{_ev['ID']}.txt")
+        raw_timeseries = load_one_timeseries(timeseries_filepath)
+        raw_timeseries_list.append(raw_timeseries)
+
+        #if _ev["sampling_frequency"] != target_sfreq:
+        #    timeseries = resample_timeseries(raw_timeseries, signal_duration_sec, target_sfreq)
+        #else:
+        #    timeseries = raw_timeseries
+
+        raw_timeseries_norm = standardize_timeseries(raw_timeseries)
+
+        whitened_timeseries = whiten_timeseries(raw_timeseries_norm)
+
+        #scalogram = Calc_scalogram(whitened_timeseries, bp_filter, target_sfreq)
+        scalogram = Calc_scalogram(whitened_timeseries, bp_filter, _ev["sampling_frequency"])
+        _scl = scalogram.scalogram_dict["scalogram"]
+
+        #if scalogram.scalogram_dict["scalogram"].shape[0] != scalogram_resize[1] or scalogram.scalogram_dict["scalogram"].shape[1] != scalogram_resize[0]:
+        scalogram.rescale_image_scalogarm(dsize=scalogram_resize, interpolation=cv2.INTER_NEAREST)
+        _scl = scalogram.scalogram_dict["scalogram"]
+
+        #if True:
+        #    _scl = scalogram.scalogram_dict["scalogram"][:,50:-50]
+        #else:
+        #    #scalograms_list.append(scalogram.scalogram_dict["scalogram"])
+        #    pass
+
+        #if True:
+        #    _scl = scalogram.normalize_256_scalogram(_scl)
+        #else:
+        #    pass
+
+        scalograms_list.append(_scl)
+
+    return(np.array(scalograms_list))
+
+def data_augmentation(scalograms, sample_size = 1300, n_transformations = 2):
+
+    labels = np.repeat(0, np.array(scalograms).shape[0])
+
+    # Create a generator
+    image_gen_trans = ImageDataGenerator(rescale=None, width_shift_range=35)
+
+    # Apply transformations
+    data_gen_trans = image_gen_trans.flow(scalograms[:,:,:, np.newaxis], y = labels, shuffle=True, batch_size = sample_size) # batch_size: sample size
+
+    # Properly store transformed images and labels
+    augmented_labels_trans = np.array(data_gen_trans[0][1]).reshape(sample_size)
+    augmented_images_trans = np.array([data_gen_trans[0][0] for i in range(n_transformations)])
+
+    # Reshape augmented image trans
+    augmented_images_trans_bis = np.reshape(augmented_images_trans, ((augmented_images_trans.shape[0] * augmented_images_trans.shape[1]), augmented_images_trans.shape[2], augmented_images_trans.shape[3], augmented_images_trans.shape[4]))
+    augmented_images_trans_bis = augmented_images_trans_bis[:,:,:,0]
+
+    scalograms = np.concatenate([scalograms, augmented_images_trans_bis])
+    labels = np.repeat(0, np.array(scalograms).shape[0])
+
+    return(scalograms)
+
+def from_idx_to_bool(data_array, idx_array):
+    bool_array = []
+    for i in range(0, len(data_array)):
+        if i in idx_array:
+            bool_array.append(True)
+        else:
+            bool_array.append(False)
+    return(np.array(bool_array))
+
+class FR_data():
+    def __init__(self):
+        pass
+
+    def split_data(self, train_idx = [], validate_idx = [], test_idx = [], textbox = [], y_labels = [], x_data = []):
+        '''
+        Split data intro train/valid/test sets
+        '''
+        self.y_data = y_labels
+        self.x_data = x_data
+
+        # From random indexes, get associated data for training set
+        bool_array_train = from_idx_to_bool(self.y_data,train_idx)
+        self.x_train = self.x_data[bool_array_train,:]
+        self.y_train = self.y_data[bool_array_train]
+
+        # From random indexes, get associated data for test set
+        bool_array_test = from_idx_to_bool(self.y_data, test_idx)
+        self.x_test = self.x_data[bool_array_test,:]
+        self.y_test = self.y_data[bool_array_test]
+
+        # Get some info
+        nb_FR_train = len(np.where(self.y_train == 0)[0])
+        nb_Noise_train = len(np.where(self.y_train == 1)[0])
+
+
+        nb_FR_test = len(np.where(self.y_test == 0)[0])
+        nb_Noise_test = len(np.where(self.y_test == 1)[0])
+
+        # Print
+        textbox.append("")
+        textbox.append("Size of:")
+        textbox.append("")
+        textbox.append("- Training-set:\t{}".format(len(self.y_train)))
+        textbox.append("\t . n FR: {}".format(nb_FR_train))
+        textbox.append("\t . n Noise: {}".format(nb_Noise_train))
+        textbox.append("")
+        textbox.append("- Test-set:\t{}".format(len(self.y_test)))
+        textbox.append("\t . n FR: {}".format(nb_FR_test))
+        textbox.append("\t . n Noise: {}".format(nb_Noise_test))
+        textbox.append("")
+
+
+def trainModel_fun(all_scalograms, all_labels, model_savepath_root, cross_valid = True):
+
+    """
+    << A test set should still be held out for final evaluation,
+    but the validation set is no longer needed when doing CV. >>
+    Source:
+    https://scikit-learn.org/stable/modules/cross_validation.html
+    https://www.machinecurve.com/index.php/2020/02/18/how-to-use-k-fold-cross-validation-with-keras/
+    I think that you are missing something still in your understanding of the purpose of cross-validation.
+
+    <<
+    Let's get some terminology straight, generally when we say 'a model' we refer to a particular method for describing how some input data relates to what we are trying to predict. We don't generally refer to particular instances of that method as different models. So you might say 'I have a linear regression model' but you wouldn't call two different sets of the trained coefficients different models. At least not in the context of model selection.
+    So, when you do K-fold cross validation, you are testing how well your model is able to get trained by some data and then predict data it hasn't seen. We use cross validation for this because if you train using all the data you have, you have none left for testing. You could do this once, say by using 80% of the data to train and 20% to test, but what if the 20% you happened to pick to test happens to contain a bunch of points that are particularly easy (or particularly hard) to predict? We will not have come up with the best estimate possible of the models ability to learn and predict.
+    We want to use all of the data. So to continue the above example of an 80/20 split, we would do 5-fold cross validation by training the model 5 times on 80% of the data and testing on 20%. We ensure that each data point ends up in the 20% test set exactly once. We've therefore used every data point we have to contribute to an understanding of how well our model performs the task of learning from some data and predicting some new data.
+    But the purpose of cross-validation is not to come up with our final model. We don't use these 5 instances of our trained model to do any real prediction. For that we want to use all the data we have to come up with the best model possible. The purpose of cross-validation is model checking, not model building.
+    Now, say we have two models, say a linear regression model and a neural network. How can we say which model is better? We can do K-fold cross-validation and see which one proves better at predicting the test set points. But once we have used cross-validation to select the better performing model, we train that model (whether it be the linear regression or the neural network) on all the data. We don't use the actual model instances we trained during cross-validation for our final predictive model.
+    Note that there is a technique called bootstrap aggregation (usually shortened to 'bagging') that does in a way use model instances produced in a way similar to cross-validation to build up an ensemble model, but that is an advanced technique beyond the scope of your question here.
+    >>
+    """
+
+    ##### Init variables #####
+    print("")
+    print("Training model...")
+
+    ### General parameters
+    data_height = all_scalograms[0].shape[0]#50
+    data_width = all_scalograms[0].shape[1]#500
+    activ_hidden = "relu"
+    activ_output = "sigmoid"
+    output_size = 1
+    dropout = 0.5
+    batch_size = 64
+    n_epochs = 10#15
+
+    ### Model optimizer
+    model_optimizer_dict = {} # can be < None > (default) ; < {} >
+    if type(model_optimizer_dict) != type(None):
+        model_optimizer_dict["learning_rate"] = 0.001 # default 0.001
+        model_optimizer_dict["beta_1"] = 0.9 # default 0.9
+        model_optimizer_dict["beta_2"] = 0.999 # default 0.999
+        model_optimizer_dict["epsilon"] = 1e-07 # default 1e-7
+        model_optimizer_dict["amsgrad"] = False # default False
+        model_optimizer_dict["name"] = "Adam" # Currently only < "Adam" > is implemented in deepL_model.py
+
+    ### Create new folder
+    now = datetime.now()
+    dt_string = now.strftime("dmy-%d.%m.%Y_hms-%H.%M.%S")
+    folder_name = f"model_{dt_string}"
+    folder_path = os.path.join(model_savepath_root, folder_name)
+
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)
+
+    print("")
+    print("memory used: {}%".format(psutil.virtual_memory()[2]))
+    ##### /Init variables #####
+
+    #kf = RepeatedKFold(n_splits=5, n_repeats=10, random_state=None)
+    n_CV_splits = 5
+    kf = KFold(n_splits=n_CV_splits, random_state=None, shuffle=True)
+
+    y_data_num_array = np.arange(0, len(all_labels))
+    y_data_num_df = pd.DataFrame(y_data_num_array)
+    ##### /Init cross-validation #####
+
+    ##### Init model architecture #####
+    model = tf.keras.models.Sequential([
+        tf.keras.layers.Conv2D(filters = 32, kernel_size = (2,4), padding ='same', activation=activ_hidden, input_shape=(data_height, data_width, 1)), # default activation : 'relu'
+        tf.keras.layers.MaxPooling2D(pool_size = (2,4)),
+        tf.keras.layers.Conv2D(filters = 32, kernel_size = (1,2), padding ='same', activation=activ_hidden), # default activation : 'relu'
+        tf.keras.layers.MaxPooling2D(pool_size = (1,4)),
+        tf.keras.layers.Conv2D(filters = 16, kernel_size = (1,1), padding ='same', activation=activ_hidden), # default activation : 'relu'
+        tf.keras.layers.MaxPooling2D(pool_size = (1,4)),
+        tf.keras.layers.Dropout(dropout),
+        tf.keras.layers.Flatten(),
+        tf.keras.layers.Dense(units = 64, activation = activ_output),
+        tf.keras.layers.Dense(units = 32, activation = activ_output),
+        tf.keras.layers.Dense(units = output_size, activation = activ_output) # units = 1 for binary cross-entropy
+    ])
+
+    model_optimizer = tf.keras.optimizers.Adam(learning_rate=model_optimizer_dict["learning_rate"],
+                                                    beta_1=model_optimizer_dict["beta_1"],
+                                                    beta_2=model_optimizer_dict["beta_2"],
+                                                    epsilon=model_optimizer_dict["epsilon"],
+                                                    amsgrad=model_optimizer_dict["amsgrad"],
+                                                    name=model_optimizer_dict["name"])
+
+    model.compile(optimizer=model_optimizer,
+                        loss=tf.keras.losses.BinaryCrossentropy(from_logits=False),
+                        metrics=['accuracy'])
+
+    print("")
+    print(model.summary())
+    ##### /Define model architecture #####
+
+
+    ##### Proceed cross-validation for model and data evaluation #####
+    acc_per_fold = []
+    loss_per_fold = []
+    trained_models_dict = {}
+    count_folds = 0
+
+    #for train_idx, test_index in kf.split(y_data_num_df):
+    for train_idx, test_idx in kf.split(y_data_num_df):
+
+        print("")
+        print("Cross-validation split {}/{}: {} examples for training, {} examples for testing".format(count_folds+1, n_CV_splits, len(train_idx), len(test_idx)))
+        #print("Train:", train_index, "Validation:",test_index)
+        #X_train, X_test = X[train_index], X[test_index]
+        #y_train, y_test = y[train_index], y[test_index]
+
+        data = FR_data()
+        data.split_data(train_idx = train_idx, test_idx = test_idx, y_labels = all_labels, x_data = all_scalograms)
+
+        print("memory used: {}%".format(psutil.virtual_memory()[2]))
+
+        scores = []
+
+        # Set early stopping
+        callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', min_delta=100, patience=10, verbose=0,mode='auto',baseline=None, restore_best_weights=False)
+
+        model.fit(data.x_train, data.y_train,
+                  #validation_data=(x_valid, y_valid),
+                  batch_size=batch_size,
+                  epochs=n_epochs,
+                  #callbacks=[callback]
+                  callbacks=None,
+                  verbose=False)
+
+        scores = model.evaluate(data.x_test, data.y_test, verbose=0)
+        print(f"Loss: {scores[0]}")
+        print(f"Accuray: {scores[1]}")
+        print("")
+
+        acc_per_fold.append(scores[1] * 100)
+        loss_per_fold.append(scores[0])
+
+        print("")
+        print("******")
+        print(f'Score for fold {count_folds+1}: {model.metrics_names[0]} of {scores[0]}; {model.metrics_names[1]} of {scores[1]*100}%')
+        print("******")
+        print("")
+
+        model_fold_scores = f'Fold-{count_folds+1}_Loss-{round(scores[0],3)}_Acc-{round(scores[1]*100,3)}%'
+        trained_models_dict[model_fold_scores] = model
+
+        #--------------------------- A SUPPR
+        model_filepath = os.path.join(folder_path, f"{model_fold_scores}.h5")
+        model.save(model_filepath)
+        #--------------------------- / A SUPPR
+
+        count_folds+=1
+        ##### /Proceed cross-validation for model and data evaluation #####
+
+    ##### Train final model using the whole dataset #####
+    model.fit(data.x_data, data.y_data,
+                #validation_data=(x_valid, y_valid),
+                batch_size=batch_size,
+                epochs=n_epochs,
+                #callbacks=[callback]
+                callbacks=None,
+                verbose=False)
+
+    trained_models_dict["final_model"] = model
+
+    print("")
+    print("******")
+    print("Final model was trained. No score is available because it was trained on the whole dataset.")
+    print("******")
+    print("")
+
+    #--------------------------- A SUPPR
+    model_filepath = os.path.join(folder_path, "final_model.h5")
+    model.save(model_filepath)
+    #--------------------------- / A SUPPR
+    ##### /Train final model using the whole dataset #####
+
+    ##### Display a summary of scores #####
+    print('------------------------------------------------------------------------')
+    print('Score per fold')
+    for i in range(0, len(acc_per_fold)):
+        print('------------------------------------------------------------------------')
+        print(f'> Fold {i+1} - Loss: {loss_per_fold[i]} - Accuracy: {acc_per_fold[i]}%')
+    print('------------------------------------------------------------------------')
+    print('Average scores for all folds:')
+    print(f'> Accuracy: {np.mean(acc_per_fold)} (+- {np.std(acc_per_fold)})')
+    print(f'> Loss: {np.mean(loss_per_fold)}')
+    print('------------------------------------------------------------------------')
+
+    print("")
+    print(list(trained_models_dict.keys())[i])
+
+    print("")
+    print("memory used: {}%".format(psutil.virtual_memory()[2]))
+    ##### /Display a summary of scores #####
+
+    return(trained_models_dict)
+
+if __name__ == "__main__":
+
+    ### Init path
+    model_savepath_root = r"F:\GardyL\Data_storage\EPIFAR_storage\Events_Database\DeepLearning_model"
+
+    class_1_folderpath = r"F:\GardyL\Data_storage\EPIFAR_storage\Events_Database\FR_big_database\full_database for IP\JSON_FR_database"
+    class_2_folderpath = r"F:\GardyL\Data_storage\EPIFAR_storage\Events_Database\FR_big_database\full_database for IP\JSON_Noise_database"
+
+    ### Load data
+    scalograms_class_1 = load_scalograms(class_1_folderpath) ## here
+    print(f"FR shape: {scalograms_class_1.shape}")
+    scalograms_class_1 = data_augmentation(scalograms_class_1, 1800, 2)
+    print(f"FR shape (augmented): {scalograms_class_1.shape}")
+    scalograms_class_2 = load_scalograms(class_2_folderpath)
+    #scalograms_class_2 = data_augmentation(scalograms_class_2, 500, 2)
+    print(f"Noise shape: {scalograms_class_2.shape}")
+
+    all_scalograms = np.concatenate([scalograms_class_1, scalograms_class_2], axis = 0)
+    all_labels = np.concatenate([np.repeat(0, len(scalograms_class_1)), np.repeat(1, len(scalograms_class_2))], axis = 0)
+
+    ### Train model
+    trained_models_dict = trainModel_fun(all_scalograms, all_labels, model_savepath_root)
+
+    ### Test model
+    model_path = r"F:\GardyL\Data_storage\EPIFAR_storage\Events_Database\DeepLearning_model\model_dmy-26.03.2022_hms-23.24.32\final_model.h5"
+    model = tf.keras.models.load_model(model_path)
+
+    scalogram = all_scalograms[0].reshape(-1, 50, 500, 1)
+
+    model.summary()
+    pred = model.predict(scalogram)
+    y_pred = tf.nn.sigmoid(pred)
+
+    if pred[0][0] < 0.5:
+        pred_class = "Candidate"
+    else:
+        pred_class = "Noise"
+
+    ### Test norm scal
+    #test = normalize_256_scalogram(all_scalograms[0])
