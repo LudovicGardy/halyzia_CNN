@@ -3,7 +3,7 @@ This program partly presents the processing performed by Ladybird, a tool for au
 
 The objective is to allow users to understand the deep-learning component of our detection procedure, which is a major step. User can use his own data or use the data we provide on this page.
 
-The model is a convolutional neural network (CNN) trained to recognise scalograms of 400 ms portions of EEG activity containing or not containing an FR. It can be adapted to macro-EEG or micro-EEG data (demo here: https://github.com/LudovicGardy/Ladybird_short_shared/blob/master/program/start_demo.ipynb).
+The model is a convolutional neural network (CNN) trained to recognise scalograms of 400 ms portions of EEG activity containing or not containing an FR. It can be adapted to macro-EEG or micro-EEG data (https://github.com/LudovicGardy/Halyzia_short_demo/blob/master/program/start_demo.ipynb).
 
 The user provides a 400 ms time series and the sampling rate as input. The algorithm will perform the following steps:
 
