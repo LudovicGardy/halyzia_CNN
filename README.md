@@ -1,9 +1,9 @@
 # Halyzia© / Ladybird Neural Network
 
 ## Description
-This program demonstrates part of the processing performed by Ladybird / Halyzia©, a software for the automatic detection of fast-ripples (FRs) in epilepsy [[L. Gardy, doctoral thesis](https://data.inpi.fr/brevets/FR3128111)], [[Brevet: FR3128111](http://thesesups.ups-tlse.fr/5164/1/2021TOU30190.pdf)].
+Halyzia©, also known as Ladybird, is a sophisticated software designed for the automatic detection of fast-ripples (FRs) in epilepsy, as described in the [doctoral thesis of L. Gardy](https://data.inpi.fr/brevets/FR3128111) and patented under [Brevet: FR3128111](http://thesesups.ups-tlse.fr/5164/1/2021TOU30190.pdf). This repository showcases a component of Halyzia© that is focused on the efficient automatic detection of Fast Ripples (FR) in epilepsy.
 
-The model uses a convolutional neural network (CNN) trained to recognize scalograms of 400 ms segments of EEG activity that either contain or do not contain an FR. It can be adapted for use with macro-EEG or micro-EEG data. The algorithm will perform the following steps:
+A convolutional neural network (CNN) was trained to recognize scalograms of 400 ms segments of EEG activity that either contain or do not contain an FR. It can adapt to macro-EEG and micro-EEG data. The algorithm performs the following steps:
 
 - Standardize the raw signal.
 - Pre-whiten the standardized raw signal [ref. 1].
@@ -18,7 +18,6 @@ Please open the `main.ipynb` file using either this GitHub page or a Jupyter Not
 ## Installation
 
 ### Prerequisites
-
 - Python 3.11
 - Python libraries: see requirements.txt
 
@@ -50,7 +49,6 @@ Before feeding the CNN, EEG raw data and scalograms are normalized through diffe
 [5] Gardy L., Barbeau E.J., Hurter C. Automatic Detection of Epileptic Spikes in Intracerebral EEG with Convolutional Kernel Density Estimation. Proceedings of the 15th International Joint Conference on Computer Vision, Imaging and Computer Graphics Theory and Applications - Volume 2 : HUCAPP, pages 101-109, 2020. https://doi.org/10.5220/0008877601010109
 
 ## Author
-
 - LinkedIn: [Ludovic Gardy](https://www.linkedin.com/in/ludovic-gardy/)
 - Doctoral thesis: [PDF](http://thesesups.ups-tlse.fr/5164/1/2021TOU30190.pdf)
 
