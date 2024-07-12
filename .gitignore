@@ -2,6 +2,7 @@
 __pycache__/
 .vs/
 derivatives/
+program/
 program/.ipynb_checkpoints
 program/events_data
 
