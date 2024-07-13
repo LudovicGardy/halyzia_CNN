@@ -1,6 +1,6 @@
 # Halyzia© / Ladybird Neural Network
 
-## Description
+## 📄 Description
 Halyzia©, also known as Ladybird, is a sophisticated software designed for the automatic detection of fast-ripples (FRs) in epilepsy, as described in the [doctoral thesis of L. Gardy](http://thesesups.ups-tlse.fr/5164/1/2021TOU30190.pdf) and patented under [Brevet: FR3128111](https://data.inpi.fr/brevets/FR3128111). This repository showcases a component of Halyzia© that is focused on the efficient automatic detection of Fast Ripples (FR) in epilepsy.
 
 A convolutional neural network (CNN) was trained to recognize scalograms of 400 ms segments of EEG activity that either contain or do not contain an FR. It can adapt to macro-EEG and micro-EEG data. The algorithm performs the following steps:
@@ -15,13 +15,16 @@ A convolutional neural network (CNN) was trained to recognize scalograms of 400 
 
 Please open the `main.ipynb` file using either this GitHub page or a Jupyter Notebook.
 
-## Installation
+## ⚒️ Installation
 
 ### Prerequisites
 - Python 3.11
-- Python libraries: see requirements.txt
+- Python libraries
+    ```sh
+    pip install -r requirements.txt
+    ```
 
-## Usage
+## 📝 Usage
 
 ### Input data
 Data were recorded from drug-resistant epilepsy patients implanted with deep intracerebral hybrid electrodes (see Figure 1). They are anonymized and represent only a small fraction of the available records. Each selected event was reviewed by at least two users: a neurologist (J. Curot, MD, PhD) and a neuroscientist (L. Gardy, PhD or E. Despouy, PhD, with E.J. Barbeau, PhD and C. Hurter, PhD).
@@ -37,7 +40,7 @@ Before feeding the CNN, EEG raw data and scalograms are normalized through diffe
 
 ![](images/image3.jpg)
 
-## References
+## 📚 References
 [1] Roehri, N., Pizzo, F., Bartolomei, F., Wendling, F., & Bénar, C. G. (2017a). What are the assets and weaknesses of HFO detectors? A benchmark framework based on realistic simulations. PLoS ONE, 12(4). https://doi.org/10.1371/journal.pone.0174702
 
 [2] Cohen M.X. Analyzing Neural Time Series Data: Theory and Practice, Cambridge, MA, USA:MIT Press, 2014.
@@ -48,9 +51,9 @@ Before feeding the CNN, EEG raw data and scalograms are normalized through diffe
 
 [5] Gardy L., Barbeau E.J., Hurter C. Automatic Detection of Epileptic Spikes in Intracerebral EEG with Convolutional Kernel Density Estimation. Proceedings of the 15th International Joint Conference on Computer Vision, Imaging and Computer Graphics Theory and Applications - Volume 2 : HUCAPP, pages 101-109, 2020. https://doi.org/10.5220/0008877601010109
 
-## Author
+## 👤 Author
 - LinkedIn: [Ludovic Gardy](https://www.linkedin.com/in/ludovic-gardy/)
 - Doctoral thesis: [PDF](http://thesesups.ups-tlse.fr/5164/1/2021TOU30190.pdf)
 
-## Note
+## 📑 Note
 For patent reasons, access to the code is restricted. Please contact the author for more information at [ludovic.gardy@gmail.com](mailto:ludovic.gardy@gmail.com).
