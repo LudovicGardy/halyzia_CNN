@@ -1,9 +1,7 @@
 # Ladybird Neural Network
 
 ## 📄 Description
-This repository showcases a component of [Ladybird](#about-ladybird) that is focused on the efficient automatic detection of Fast Ripples (FR) in epilepsy.
-
-A convolutional neural network (CNN) was trained to recognize scalograms of 400 ms segments of EEG activity that either contain or do not contain an FR. It can adapt to macro-EEG and micro-EEG data. The algorithm performs the following steps:
+This repository showcases a component of [Ladybird](#about-ladybird) that is focused on the efficient automatic detection of Fast Ripples (FR) in epilepsy. A convolutional neural network (CNN) was trained to recognize scalograms of 400 ms segments of EEG activity that either contain or do not contain an FR. It can adapt to macro-EEG and micro-EEG data. The algorithm performs the following steps:
 
 - Standardize the raw signal.
 - Pre-whiten the standardized raw signal [ref. 1].
@@ -29,16 +27,16 @@ Please open the `main.ipynb` file using either this GitHub page or a Jupyter Not
 ### Input data
 Data were recorded from drug-resistant epilepsy patients implanted with deep intracerebral hybrid electrodes (see Figure 1). They are anonymized and represent only a small fraction of the available records. Each selected event was reviewed by at least two users: a neurologist (J. Curot, MD, PhD) and a neuroscientist (L. Gardy, PhD or E. Despouy, PhD, with E.J. Barbeau, PhD and C. Hurter, PhD).
 
-![](images/image1.jpg)
+!["image1"](images/image1.jpg)
 
 We also provide some simulated data to validate our procedure with a known frequency, duration, and position. The provided database is structured as shown in Figure 2.
 
-![](images/image2.jpg)
+!["image2"](images/image2.jpg)
 
 ### Normalization process
 Before feeding the CNN, EEG raw data and scalograms are normalized through different methods. Figure 3 shows an example of this process. On this figure, the y-axis of scalograms is represented between 10 and 600 Hz.
 
-![](images/image3.jpg)
+!["image3"](images/image3.jpg)
 
 ## 📚 References
 [1] Roehri, N., Pizzo, F., Bartolomei, F., Wendling, F., & Bénar, C. G. (2017a). What are the assets and weaknesses of HFO detectors? A benchmark framework based on realistic simulations. PLoS ONE, 12(4). https://doi.org/10.1371/journal.pone.0174702
